@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>বই বিক্রয় মেমো জেনারেটর</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f9;
+            color: #333;
+        }
+        #app {
+            max-width: 900px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #007bff;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        label, select, button {
+            display: block;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #28a745;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.3s;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+        #books-list {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        .data-table th, .data-table td {
+            border: 1px solid #eee;
+            padding: 10px;
+            text-align: left;
+            font-size: 0.9em;
+        }
+        .data-table th {
+            background-color: #007bff;
+            color: white;
+        }
+        .data-table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .data-table input[type="number"] {
+            width: 50px;
+            padding: 5px;
+            text-align: center;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+        }
+        .total-row {
+            font-weight: bold;
+            background-color: #fff3cd !important;
+            color: #856404;
+        }
+
+        /* --- Print Memo Styles --- */
+        .memo-container {
+            border: 2px solid #333;
+            padding: 30px;
+            margin-top: 40px;
+            display: none; /* Hidden by default */
+            max-width: 700px;
+        }
+        .memo-header {
+            text-align: center;
+            border-bottom: 3px double #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+        }
+        .memo-header h2 {
+            margin: 5px 0;
+            color: #333;
+        }
+        .memo-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        .memo-table th, .memo-table td {
+            border: 1px solid #999;
+            padding: 10px;
+            text-align: left;
+        }
+        .memo-table th {
+            background-color: #e9ecef;
+        }
+        .memo-footer {
+            margin-top: 40px;
+            padding-top: 10px;
+            border-top: 1px solid #ccc;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        /* Styles to hide form controls when printing */
+        @media print {
+            body > #app > *:not(.memo-container) { display: none !important; }
+            .memo-container {
+                display: block !important;
+                border: none;
+                padding: 0;
+                margin: 0 auto;
+                width: 100%; /* Use full width for printing */
+                box-shadow: none;
+            }
+            .memo-header { border-bottom: 3px double #333; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app">
+        <h1>📚 বই বিক্রয় মেমো জেনারেটর</h1>
+        
+        <label for="class-select">ক্লাস নির্বাচন করুন:</label>
+        <select id="class-select" onchange="displayBooks()">
+            <option value="">-- ক্লাস নির্বাচন করুন --</option>
+            </select>
+
+        <div id="books-list">
+            </div>
+
+        <button onclick="generateMemo()">বিল তৈরি করুন, ডেটা সেভ করুন এবং প্রিন্ট করুন</button>
+        <button onclick="resetForm()" style="background-color: #dc3545;">নতুন বিল তৈরি করুন</button>
+
+        <div id="memo-output" class="memo-container">
+            </div>
+    </div>
+
+    <script>
+        // --- ১. বইয়ের তালিকা (আপনার CSV ফাইল থেকে সংকলিত) ---
+        const bookData = {
+            "Reception": [
+                {"Subject": "Dua", "Books": "My Daily Dua Book", "Price": 178},
+                {"Subject": "Arabic literacy", "Books": "العربية بين يدي اولادنا (Al Arabiyatu Baina Yaday Awladina) - Grade 1", "Price": 165},
+                {"Subject": "Exercise Book", "Books": "Arabic Letters In The Hands Of Our Children", "Price": 182},
+                {"Subject": "Bangla", "Books": "বাংলা পড়া", "Price": 140},
+                {"Subject": "CC Books (Box)", "Books": "My first steps with cambridge (upper kg)", "Price": 1240}
+            ],
+            "Year 1": [
+                {"Subject": "Seerah", "Books": "تعليم الاسلام (Islamic Education) - Grade 1", "Price": 114},
+                {"Subject": "Arabic literacy", "Books": "العربية بين يدي اولادنا (Al Arabiyatu Baina Yaday Awladina) - Grade 1", "Price": 183},
+                {"Subject": "Hadith & Dua", "Books": "تسهيل الاحاديث والاخلاق (Tas-heelul Ahaadeeth wal Akhlaaq) - Grade 1", "Price": 150},
+                {"Subject": "U Quran", "Books": "125 words of the Quran", "Price": 250},
+                {"Subject": "Mathematics", "Books": "Cambridge Primary Math Learner’s Book 1", "Price": 395},
+                {"Subject": "Mathematics", "Books": "Cambridge Primary Math Workbook 1", "Price": 350},
+                {"Subject": "English", "Books": "Cambridge Grammar and Writing skills Learner’s Book 1", "Price": 250},
+                {"Subject": "English", "Books": "Cambridge Primary English Workbook 1", "Price": 195},
+                {"Subject": "English", "Books": "Cambridge Primary English Learner's book 1", "Price": 400},
+                {"Subject": "Bangla", "Books": "আমার বাংলা বই প্রথম শ্রেণী", "Price": 65},
+                {"Subject": "Bangla", "Books": "আমার বাংলা বই 2nd paper", "Price": 158},
+                {"Subject": "Science", "Books": "Cambridge Primary Science Leaner’s Book 1", "Price": 352},
+                {"Subject": "Science", "Books": "Cambridge Primary Science Workbook 1", "Price": 148},
+                {"Subject": "ICT", "Books": "Cambridge Primary Computing Learner’s Book 1", "Price": 285}
+            ],
+            "Year 2": [
+                {"Subject": "Hadith & Dua", "Books": "تسهيل الاحاديث والاخلاق (Tas-heelul Ahaadeeth wal Akhlaaq) - Grade 2", "Price": 109},
+                {"Subject": "Seerah", "Books": "تعليم الاسلام (Islamic Education) - Grade 2", "Price": 104},
+                {"Subject": "Arabic literacy", "Books": "العربية بين يدي اولادنا (Al Arabiyatu Baina Yaday Awladina) - Grade 2", "Price": 194},
+                {"Subject": "U Quran", "Books": "125 words of the Quran", "Price": 228},
+                {"Subject": "Mathematics", "Books": "Cambridge Primary Math Learner’s Book 2", "Price": 378},
+                {"Subject": "Mathematics", "Books": "Cambridge Primary Math Workbook 2", "Price": 192},
+                {"Subject": "English", "Books": "Cambridge Grammar and Writing skills Learner’s Book 2", "Price": 248},
+                {"Subject": "English", "Books": "Cambridge Primary English Workbook 2", "Price": 192},
+                {"Subject": "English", "Books": "Cambridge Primary English Learner’s Book-2", "Price": 420},
+                {"Subject": "Bangla", "Books": "আমার বাংলা বই দ্বিতীয় শ্রেণী", "Price": 65},
+                {"Subject": "Bangla", "Books": "আমার বাংলা বই 2nd paper", "Price": 143},
+                {"Subject": "Science", "Books": "Cambridge Primary Science Leaner’s Book 2", "Price": 392},
+                {"Subject": "Science", "Books": "Cambridge Primary Science Workbook 2", "Price": 148},
+                {"Subject": "ICT", "Books": "Cambridge Primary Computing Learner’s Book 2", "Price": 397}
+            ],
+            "Year 3": [
+                {"Subject": "Iman & Fiqh", "Books": "تعليم الاسلام (Islamic Education) - Grade 3", "Price": 128},
+                {"Subject": "Hadith & Dua", "Books": "تسهيل الاحاديث والاخلاق (Tas-heelul Ahaadeeth wal Akhlaaq) - Grade 3", "Price": 98},
+                {"Subject": "Seerah", "Books": "تعليم الاسلام (Islamic Education) - Grade 3", "Price": 96},
+                {"Subject": "Arabic literacy", "Books": "العربية بين يدي اولادنا (Al Arabiyatu Baina Yaday Awladina) - Grade 3", "Price": 187},
+                {"Subject": "Understanding Quran", "Books": "Understanding Quran", "Price": 300},
+                {"Subject": "Mathematics", "Books": "Cambridge Primary Math", "Price": 395},
+                {"Subject": "Mathematics", "Books": "Cambridge Primary Math Workbook", "Price": 187},
+                {"Subject": "English", "Books": "Cambridge grammar and writing skills", "Price": 248},
+                {"Subject": "English", "Books": "Cambridge Primary English Workbook", "Price": 172},
+                {"Subject": "English", "Books": "Cambridge Primary Learner’s Book 3", "Price": 420},
+                {"Subject": "Bangla", "Books": "Bangla 1st", "Price": 65},
+                {"Subject": "Bangla", "Books": "Bangla 2nd Part", "Price": 186},
+                {"Subject": "Science", "Books": "Cambridge Primary Science", "Price": 346},
+                {"Subject": "Science", "Books": "Cambridge Primary Science Workbook", "Price": 152},
+                {"Subject": "ICT", "Books": "Cambridge Primary Computing Learner’s", "Price": 465},
+                {"Subject": "BGS", "Books": "Bangladesh and Global Studies", "Price": 95}
+            ],
+            "Year 4": [
+                {"Subject": "Iman & Fiqh", "Books": "تعليم الاسلام (Islamic Education) - Grade 4", "Price": 152},
+                {"Subject": "Seerah", "Books": "تعليم الاسلام (Islamic Education) - Grade 4", "Price": 108},
+                {"Subject": "Arabic literacy", "Books": "العربية بين يدي اولادنا (Al Arabiyatu Baina Yaday Awladina) - Grade 4", "Price": 204},
+                {"Subject": "Dua and Hadith", "Books": "তسهيل الاحاديث والاخلاق (Tas-heelul Ahaadeeth wal Akhlaaq) - Grade 4", "Price": 150},
+                {"Subject": "Understanding Quran", "Books": "AQS Understanding Quran part 2", "Price": 300},
+                {"Subject": "Mathematics", "Books": "math’s Cambridge Primary Math", "Price": 392},
+                {"Subject": "Mathematics", "Books": "Cambridge Primary Math Workbook", "Price": 188},
+                {"Subject": "English", "Books": "Cambridge grammar and writing skills", "Price": 248},
+                {"Subject": "English", "Books": "Cambridge Primary English Workbook", "Price": 182},
+                {"Subject": "English", "Books": "Cambridge Primary English", "Price": 396},
+                {"Subject": "Bangla", "Books": "Bangla", "Price": 65},
+                {"Subject": "Bangla", "Books": "Bangla 2nd Part", "Price": 344},
+                {"Subject": "Science", "Books": "Cambridge Primary Science", "Price": 396},
+                {"Subject": "Science", "Books": "Primary Science workbook", "Price": 165},
+                {"Subject": "ICT", "Books": "Cambridge Primary Computing Learner’s", "Price": 464},
+                {"Subject": "BGS", "Books": "Bangladesh and Global Studies", "Price": 95}
+            ],
+            "Year 5": [
+                {"Subject": "Iman & Fiqh", "Books": "تعليم الاسلام (Islamic Education) - Grade 5", "Price": 164},
+                {"Subject": "Seerah", "Books": "تعليم الاسلام (Islamic Education) - Grade 5", "Price": 136},
+                {"Subject": "Arabic literacy", "Books": "العربية بين يدي اولادنا (Al Arabiyatu Baina Yaday Awladina) – Grade 5", "Price": 216},
+                {"Subject": "Dua and Hadith", "Books": "تسهيل الاحاديث والاخلاق (Tas-heelul Ahaadeeth wal Akhlaaq) - Grade 5", "Price": 155},
+                {"Subject": "Understanding Quran", "Books": "AQS Understanding Quran part 2", "Price": 300},
+                {"Subject": "Mathematics", "Books": "Cambridge Primary Math LEARNER BOOK", "Price": 372},
+                {"Subject": "Mathematics", "Books": "Cambridge Primary Math Workbook", "Price": 187},
+                {"Subject": "English", "Books": "Cambridge grammar and writing skills", "Price": 272},
+                {"Subject": "English", "Books": "Cambridge Primary English Workbook", "Price": 172},
+                {"Subject": "English", "Books": "Primary English learner book", "Price": 396},
+                {"Subject": "Bangla", "Books": "Bangla 1st", "Price": 78},
+                {"Subject": "Bangla", "Books": "Bangla 2nd Part", "Price": 318},
+                {"Subject": "Science", "Books": "Primary Science Workbook", "Price": 152},
+                {"Subject": "Science", "Books": "Cambridge Primary Science", "Price": 390},
+                {"Subject": "ICT", "Books": "Cambridge Primary Computing Learner’s", "Price": 585},
+                {"Subject": "BGS", "Books": "Bangladesh and Global Studies", "Price": 123}
+            ],
+            "Year 6": [
+                {"Subject": "Iman & Fiqh", "Books": "تعليم الاسلام (Islamic Education) - Grade 6", "Price": 152},
+                {"Subject": "Seerah", "Books": "تعليم الاسلام (Islamic Education) - Grade 6", "Price": 182},
+                {"Subject": "Arabic literacy", "Books": "العربية بين يدي اولادنا (Al Arabiyatu Baina Yaday Awladina) - Grade 6", "Price": 204},
+                {"Subject": "Dua and Hadith", "Books": "তسهিল الاحاديث والاخلاق (Tas-heelul Ahaadeeth wal Akhlaaq) - Grade 6", "Price": 155},
+                {"Subject": "Understanding Quran", "Books": "AQS Understanding Quran part 2", "Price": 300},
+                {"Subject": "Mathematics", "Books": "Cambridge Primary Math", "Price": 398},
+                {"Subject": "Mathematics", "Books": "Cambridge Primary math workbook", "Price": 185},
+                {"Subject": "English", "Books": "Cambridge grammar and writing skills", "Price": 268},
+                {"Subject": "English", "Books": "Cambridge Primary English Workbook", "Price": 189},
+                {"Subject": "English", "Books": "Cambridge primary English", "Price": 394},
+                {"Subject": "Bangla", "Books": "Bangla", "Price": 75},
+                {"Subject": "Bangla", "Books": "Bangla 2nd Part", "Price": 75},
+                {"Subject": "Science", "Books": "Cambridge Primary Science", "Price": 398},
+                {"Subject": "Science", "Books": "Cambridge Primary Science Workbook", "Price": 165},
+                {"Subject": "ICT", "Books": "Cambridge Primary Computing Learner’s", "Price": 578},
+                {"Subject": "BGS", "Books": "Bangladesh and Global Studies", "Price": 95}
+            ],
+            "Year 7": [
+                {"Subject": "Iman & Fiqh", "Books": "تعليم الاسلام (Islamic Education) - Grade 7", "Price": 123},
+                {"Subject": "Seerah", "Books": "تعليم الاسلام (Islamic Education) - Grade 7", "Price": 204},
+                {"Subject": "Arabic literacy", "Books": "العربية بين يدي اولادنا (Al Arabiyatu Baina Yaday Awladina) - Grade 7", "Price": 206},
+                {"Subject": "Dua Hadith", "Books": "তسهিল الاحাদيث والاخلاق (Tas-heelul Ahaadeeth wal Akhlaaq) - Grade 7", "Price": 150},
+                {"Subject": "Understanding Quran", "Books": "AQS Understanding Quran part 2", "Price": 300},
+                {"Subject": "Mathematics", "Books": "Cambridge lower math Workbook", "Price": 237},
+                {"Subject": "Mathematics", "Books": "Cambridge lower math learner book", "Price": 765},
+                {"Subject": "English", "Books": "Cambridge grammar and writing skills", "Price": 285},
+                {"Subject": "English", "Books": "Cambridge Primary English Workbook", "Price": 568},
+                {"Subject": "English", "Books": "Cambridge Primary Learner’s Book 7", "Price": 600},
+                {"Subject": "Bangla", "Books": "Bangla", "Price": 80},
+                {"Subject": "Bangla", "Books": "Bangla 2nd", "Price": 75},
+                {"Subject": "Science", "Books": "Cambridge lower Science Workbook", "Price": 230},
+                {"Subject": "Science", "Books": "Cambridge lower Science learner book", "Price": 774},
+                {"Subject": "ICT", "Books": "Cambridge Primary Computing Learner’s", "Price": 682},
+                {"Subject": "BGS", "Books": "Bangladesh and Global Studies", "Price": 95}
+            ],
+            "Year 8": [
+                {"Subject": "Maths D", "Books": "Cambridge O level Mathematics Coursebook", "Price": 1130},
+                {"Subject": "English", "Books": "Cambridge IGCSE English as a Second Language Coursebook", "Price": 600},
+                {"Subject": "English", "Books": "Cambridge IGCSE English as a Second Language workbook", "Price": 310},
+                {"Subject": "Chemistry", "Books": "Cambridge IGCSE Chemistry students book", "Price": 700},
+                {"Subject": "Physics", "Books": "Physics For Cambridge IGCSE coursebook", "Price": 700},
+                {"Subject": "Biology", "Books": "Biology for Cambridge IGCSE Course", "Price": 682},
+                {"Subject": "Add Math", "Books": "Cambridge IGCSE and O level Additional Mathematics Coursebook", "Price": 672},
+                {"Subject": "Economics", "Books": "Cambridge IGCSE and O level Economics coursebook second edition", "Price": 658},
+                {"Subject": "Bangla", "Books": "Bangla 1st", "Price": 75},
+                {"Subject": "Bangla", "Books": "Bangla 2nd part", "Price": 75},
+                {"Subject": "Environmental Mng.", "Books": "Cambridge IGCSE and O level Environmental Management coursebook", "Price": 484},
+                {"Subject": "Bangladesh Studies", "Books": "Bangladesh Studies (history and culture...)", "Price": 342},
+                {"Subject": "Computer Science", "Books": "Computer Science for Cambridge IGCSE & O level coursebook", "Price": 688},
+                {"Subject": "Understanding Quran", "Books": "AQS Understanding Quran part 2", "Price": 300},
+                {"Subject": "Business studies", "Books": "Business studies", "Price": 700},
+                {"Subject": "Accounting", "Books": "Accounting", "Price": 700},
+                {"Subject": "Islamiyat", "Books": "Islamiyat", "Price": 300}
+            ],
+            "Year 9": [
+                {"Subject": "Chemistry", "Books": "Cambridge IGCSE Chemistry students book", "Price": 700},
+                {"Subject": "Physics", "Books": "Physics For Cambridge IGCSE coursebook", "Price": 700},
+                {"Subject": "Bangla", "Books": "Bangla 2nd part", "Price": 75},
+                {"Subject": "Understanding Quran", "Books": "AQS Understanding Quran part 2", "Price": 300}
+            ],
+            "Question Paper Set": [
+                {"Subject": "ICT", "Books": "Cambridge IGCSE O-Level Question Paper Computing (1)", "Price": 700},
+                {"Subject": "ICT", "Books": "Cambridge IGCSE O-Level Question Paper Computing (2)", "Price": 700},
+                {"Subject": "Chemistry 4", "Books": "Cambridge IGCSE O-Level Question Paper Chemistry-4", "Price": 700},
+                {"Subject": "Chemistry 2", "Books": "Cambridge IGCSE O-Level Question Paper Chemistry-2", "Price": 75},
+                {"Subject": "Chemistry 5", "Books": "Cambridge IGCSE O-Level Question Paper Chemistry-5", "Price": 300},
+                {"Subject": "Chemistry 6", "Books": "Cambridge IGCSE O-Level Question Paper Chemistry-6", "Price": 700},
+                {"Subject": "Biology 4", "Books": "Cambridge IGCSE O-Level Question Paper Biology-4", "Price": 700},
+                {"Subject": "Physics 2", "Books": "Cambridge IGCSE O-Level Question Paper Physics-2", "Price": 700},
+                {"Subject": "Physics 4", "Books": "Cambridge IGCSE O-Level Question Paper Physics-4", "Price": 700},
+                {"Subject": "Add Math 1", "Books": "Cambridge IGCSE and O level Question Paper Additional Mathematics 1", "Price": 300},
+                {"Subject": "Add Math 2", "Books": "Cambridge IGCSE and O level Question Paper Additional Mathematics 2", "Price": 700}
+            ]
+        };
+
+        // --- ২. ফাংশন যা ক্লাস ড্রপডাউন পপুলেট করে ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const select = document.getElementById('class-select');
+            Object.keys(bookData).forEach(className => {
+                const option = document.createElement('option');
+                option.value = className;
+                option.textContent = className;
+                select.appendChild(option);
+            });
+        });
+
+        // --- ৩. ফাংশন যা ক্লাস অনুযায়ী বই দেখায় ---
+        function displayBooks() {
+            const selectedClass = document.getElementById('class-select').value;
+            const booksListDiv = document.getElementById('books-list');
+            booksListDiv.innerHTML = '';
+            
+            if (!selectedClass) return;
+
+            const books = bookData[selectedClass];
+            let html = '<h3>' + selectedClass + ' ক্লাসের বইয়ের তালিকা</h3>';
+            html += '<table class="data-table"><thead><tr><th>বিষয়</th><th>বইয়ের নাম</th><th>ইউনিট মূল্য (BDT)</th><th>পরিমাণ</th><th>মোট মূল্য (BDT)</th></tr></thead><tbody>';
+
+            books.forEach((book, index) => {
+                const bookId = `book-${index}`;
+                html += `
+                    <tr id="${bookId}-row">
+                        <td>${book.Subject}</td>
+                        <td>${book.Books}</td>
+                        <td class="unit-price" data-price="${book.Price}">${book.Price.toLocaleString()}</td>
+                        <td><input type="number" min="0" value="0" data-index="${index}" oninput="calculateTotal()" style="width: 60px;"></td>
+                        <td id="${bookId}-total">0</td>
+                    </tr>
+                `;
+            });
+
+            html += '<tr><td colspan="4" style="text-align: right;">গ্র্যান্ড টোটাল:</td><td id="grand-total" class="total-row">0</td></tr>';
+            html += '</tbody></table>';
+            
+            booksListDiv.innerHTML = html;
+        }
+
+        // --- ৪. ফাংশন যা মোট মূল্য হিসেব করে ---
+        function calculateTotal() {
+            const selectedClass = document.getElementById('class-select').value;
+            if (!selectedClass) return;
+
+            const books = bookData[selectedClass];
+            let grandTotal = 0;
+            
+            const quantityInputs = document.querySelectorAll('#books-list input[type="number"]');
+
+            quantityInputs.forEach(input => {
+                const index = input.getAttribute('data-index');
+                const quantity = parseInt(input.value) || 0;
+                const book = books[index];
+                const totalPrice = book.Price * quantity;
+                
+                document.getElementById(`book-${index}-total`).textContent = totalPrice.toLocaleString();
+                grandTotal += totalPrice;
+            });
+
+            document.getElementById('grand-total').textContent = grandTotal.toLocaleString() + ' BDT';
+        }
+        
+        // --- ৫. ফাংশন যা মেমো তৈরি করে, ডেটা সেভ করে এবং প্রিন্ট করে ---
+        function generateMemo() {
+            calculateTotal(); // Final calculation
+            const selectedClass = document.getElementById('class-select').value;
+            const memoOutput = document.getElementById('memo-output');
+            
+            if (!selectedClass) {
+                alert('অনুগ্রহ করে একটি ক্লাস নির্বাচন করুন।');
+                return;
+            }
+
+            let finalTotal = 0;
+            const salesItems = [];
+
+            // Collect selected books
+            const quantityInputs = document.querySelectorAll('#books-list input[type="number"]');
+            let sl = 1;
+            
+            quantityInputs.forEach(input => {
+                const quantity = parseInt(input.value) || 0;
+                if (quantity > 0) {
+                    const index = input.getAttribute('data-index');
+                    const book = bookData[selectedClass][index];
+                    const totalPrice = book.Price * quantity;
+                    finalTotal += totalPrice;
+                    
+                    salesItems.push({
+                        Subject: book.Subject,
+                        Book: book.Books,
+                        Price: book.Price,
+                        Qty: quantity,
+                        Total: totalPrice
+                    });
+                }
+            });
+
+            if (salesItems.length === 0) {
+                alert('অনুগ্রহ করে কমপক্ষে একটি বইয়ের পরিমাণ দিন।');
+                return;
+            }
+
+            // --- মেমো HTML তৈরি ---
+            let memoHTML = `
+                <div class="memo-header">
+                    <h2>বই বিক্রয় মেমো</h2>
+                    <p>বিক্রয়ের তারিখ: <strong>${new Date().toLocaleDateString('bn-BD')}</strong></p>
+                    <p>শিক্ষার্থীর ক্লাস: <strong>${selectedClass}</strong></p>
+                </div>
+                <table class="memo-table">
+                    <thead>
+                        <tr>
+                            <th>ক্রমিক</th>
+                            <th>বইয়ের নাম ও বিষয়</th>
+                            <th style="text-align: right;">ইউনিট মূল্য (BDT)</th>
+                            <th style="text-align: center;">পরিমাণ</th>
+                            <th style="text-align: right;">মোট মূল্য (BDT)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            salesItems.forEach((item, index) => {
+                memoHTML += `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${item.Book} (${item.Subject})</td>
+                        <td style="text-align: right;">${item.Price.toLocaleString()}</td>
+                        <td style="text-align: center;">${item.Qty}</td>
+                        <td style="text-align: right;">${item.Total.toLocaleString()}</td>
+                    </tr>
+                `;
+            });
+
+            memoHTML += `
+                <tr class="total-row">
+                    <td colspan="4" style="text-align: right;">মোট প্রদেয় বিল:</td>
+                    <td style="text-align: right;">${finalTotal.toLocaleString()} BDT</td>
+                </tr>
+            </tbody>
+            </table>
+            <div class="memo-footer">
+                <p>ক্রেতার স্বাক্ষর: _________________________</p>
+                <p>বিক্রেতার স্বাক্ষর: _________________________</p>
+            </div>
+            `;
+
+            memoOutput.innerHTML = memoHTML;
+            memoOutput.style.display = 'block';
+
+            // --- Google Sheet এ ডেটা সেভ করা ---
+            const logData = {
+                class: selectedClass,
+                total: finalTotal,
+                items: salesItems
+            };
+            // ডেটা সেভ করার জন্য Apps Script ফাংশন কল করা
+            logSaleToGoogleSheet(logData);
+            
+            // --- প্রিন্ট ফাংশন কল করা ---
+            window.print();
+        }
+
+        // ------------------------------------------------------------------------------------------------
+        // --- ৬. Google Sheet এ ডেটা সেভ করার চূড়ান্ত ফাংশন (আপনার Apps Script URL এখানে দিন) ---
+        // ------------------------------------------------------------------------------------------------
+        function logSaleToGoogleSheet(data) {
+            // **এইখানে, নিচের ডাবল কোটেশনের (' ') মধ্যে আপনার তৈরি করা Google Apps Script Web App URL টি পেস্ট করুন।**
+            const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxG7yFkKzimNwKmcCacaRjJAAEmaao92XsFQKFcHcRES9LsR74cOuEfpuoJ_jsyBBjl/exec'; 
+            
+            if (!SCRIPT_URL || !SCRIPT_URL.includes('https://script.google.com/macros/s/')) {
+                console.warn('⚠️ ডেটা সেভ করা সম্ভব হচ্ছে না। অনুগ্রহ করে SCRIPT_URL ভেরিয়েবলে আপনার Google Apps Script Web App URL টি সঠিকভাবে যুক্ত করুন।');
+                return;
+            }
+
+            fetch(SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors', // Apps Script CORS requires this setting
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => {
+                console.log('✅ Sales data sent to Google Sheet endpoint.');
+                // Apps Script 'no-cors' মোডে থাকায় এখানে সফলভাবে ডেটা সেভ হয়েছে বলে ধরে নেওয়া হয়।
+            })
+            .catch(error => {
+                console.error('❌ Error sending data to Google Sheet:', error);
+            });
+        }
+
+        // --- ৭. ফর্ম রিসেট ফাংশন ---
+        function resetForm() {
+            document.getElementById('class-select').value = '';
+            document.getElementById('books-list').innerHTML = '';
+            document.getElementById('memo-output').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
