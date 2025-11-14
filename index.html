@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Book Salse</title>
+    <title>বই বিক্রয় মেমো জেনারেটর</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -506,7 +506,7 @@
         // ------------------------------------------------------------------------------------------------
         function logSaleToGoogleSheet(data) {
             // **এইখানে, নিচের ডাবল কোটেশনের (' ') মধ্যে আপনার তৈরি করা Google Apps Script Web App URL টি পেস্ট করুন।**
-            const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz758rzYniUvPoY-d62Cmhnlf28lOufUQdEY_ziVs-TSzxOAJYFmBYumnmXdo4Rsngg/exec'; 
+            const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzVErwy8LX3WMCXpKqZO-REHWNNKp3ouIwf6HA-HggVZc8y-uSz9LBNjPpXdsVHckPP/exec'; 
             
             if (!SCRIPT_URL || !SCRIPT_URL.includes('https://script.google.com/macros/s/')) {
                 console.warn('⚠️ ডেটা সেভ করা সম্ভব হচ্ছে না। অনুগ্রহ করে SCRIPT_URL ভেরিয়েবলে আপনার Google Apps Script Web App URL টি সঠিকভাবে যুক্ত করুন।');
@@ -538,5 +538,4 @@
         }
     </script>
 </body>
-
 </html>
